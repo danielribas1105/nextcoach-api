@@ -1,7 +1,8 @@
 import "dotenv/config"
 
+import fastifyCors from "@fastify/cors"
 import fastifySwagger from "@fastify/swagger"
-import fastifySwaggerUI from "@fastify/swagger-ui"
+import fastifyApiReference from "@scalar/fastify-api-reference"
 import Fastify from "fastify"
 import {
 	jsonSchemaTransform,
@@ -38,14 +39,41 @@ await app.register(fastifySwagger, {
 	transform: jsonSchemaTransform,
 })
 
-await app.register(fastifySwaggerUI, {
+await app.register(fastifyCors, {
+	origin: ["http://localhost:3000"],
+	credentials: true,
+})
+
+await app.register(fastifyApiReference, {
 	routePrefix: "/docs",
+	configuration: {
+		sources: [
+			{
+				title: "NextCoach API",
+				slug: "nextcoach-api",
+				url: "/swagger.json",
+			},
+			{
+				title: "Auth API",
+				slug: "auth-api",
+				url: "/api/auth/open-api/generate-schema",
+			},
+		],
+	},
+})
+
+app.withTypeProvider<ZodTypeProvider>().route({
+	method: "GET",
+	url: "/swagger.json",
+	schema: { hide: true },
+	handler: async () => {
+		return app.swagger()
+	},
 })
 
 app.withTypeProvider<ZodTypeProvider>().route({
 	method: "GET",
 	url: "/",
-	// Define your schema
 	schema: {
 		description: "Hello World",
 		tags: ["Hello World"],
