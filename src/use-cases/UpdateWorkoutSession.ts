@@ -1,5 +1,5 @@
 import { NotFoundError } from "../errors/index.js"
-import { prisma } from "../lib/db.js"
+import { prisma } from "../lib/prisma.js"
 
 interface InputDto {
 	userId: string

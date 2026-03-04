@@ -1,6 +1,6 @@
 import { NotFoundError } from "../errors/index.js"
 import { WeekDay } from "../generated/prisma/enums.js"
-import { prisma } from "../lib/db.js"
+import { prisma } from "../lib/prisma.js"
 
 // Data Transfer Object
 interface InputDto {
