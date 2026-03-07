@@ -1,18 +1,29 @@
-import "dotenv/config"
-
 import { betterAuth } from "better-auth"
 import { prismaAdapter } from "better-auth/adapters/prisma"
 import { openAPI } from "better-auth/plugins"
 
+import { env } from "./env.js"
 import { prisma } from "./prisma.js"
 
 export const auth = betterAuth({
-	baseURL: process.env.BETTER_AUTH_URL,
-	emailAndPassword: {
-		enabled: true,
+	baseURL: env.API_BASE_URL,
+	trustedOrigins: [env.WEB_APP_BASE_URL],
+	socialProviders: {
+		google: {
+			prompt: "select_account",
+			clientId: env.GOOGLE_CLIENT_ID,
+			clientSecret: env.GOOGLE_CLIENT_SECRET,
+		},
 	},
 	database: prismaAdapter(prisma, {
 		provider: "postgresql",
 	}),
 	plugins: [openAPI()],
+	advanced: {
+		crossSubDomainCookies: {
+			enabled: true,
+			domain:
+				env.NODE_ENV === "production" ? ".fullstackclub.com.br" : undefined,
+		},
+	},
 })

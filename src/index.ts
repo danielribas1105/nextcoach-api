@@ -12,15 +12,31 @@ import {
 } from "fastify-type-provider-zod"
 import z from "zod"
 
+import { NotFoundError } from "./errors/index.js"
 import { auth } from "./lib/auth.js"
+import { env } from "./lib/env.js"
 import { aiRoutes } from "./routes/ai.js"
 import { homeRoutes } from "./routes/home.js"
 import { meRoutes } from "./routes/me.js"
 import { statsRoutes } from "./routes/stats.js"
 import { workoutPlanRoutes } from "./routes/workout-plan.js"
 
+const envToLogger = {
+	development: {
+		transport: {
+			target: "pino-pretty",
+			options: {
+				translateTime: "HH:MM:ss Z",
+				ignore: "pid,hostname",
+			},
+		},
+	},
+	production: true,
+	test: false,
+}
+
 const app = Fastify({
-	logger: true,
+	logger: envToLogger[env.NODE_ENV],
 })
 
 app.setValidatorCompiler(validatorCompiler)
@@ -36,7 +52,7 @@ await app.register(fastifySwagger, {
 		servers: [
 			{
 				description: "Localhost",
-				url: "http://localhost:3001",
+				url: env.API_BASE_URL,
 			},
 		],
 	},
@@ -44,7 +60,7 @@ await app.register(fastifySwagger, {
 })
 
 await app.register(fastifyCors, {
-	origin: ["http://localhost:3001"],
+	origin: [env.WEB_APP_BASE_URL],
 	credentials: true,
 })
 
@@ -66,6 +82,7 @@ await app.register(fastifyApiReference, {
 	},
 })
 
+// RESTful
 // Routes
 await app.register(homeRoutes, { prefix: "/home" })
 await app.register(meRoutes, { prefix: "/me" })
@@ -104,6 +121,9 @@ app.withTypeProvider<ZodTypeProvider>().route({
 app.route({
 	method: ["GET", "POST"],
 	url: "/api/auth/*",
+	schema: {
+		hide: true,
+	},
 	async handler(request, reply) {
 		try {
 			// Construct request URL
@@ -127,8 +147,13 @@ app.route({
 			response.headers.forEach((value, key) => reply.header(key, value))
 			reply.send(response.body ? await response.text() : null)
 		} catch (error) {
-			/* app.log.error("Authentication Error:", error) */
 			app.log.error(error)
+			if (error instanceof NotFoundError) {
+				return reply.status(404).send({
+					error: error.message,
+					code: "NOT_FOUND_ERROR",
+				})
+			}
 			reply.status(500).send({
 				error: "Internal authentication error",
 				code: "AUTH_FAILURE",
@@ -138,7 +163,7 @@ app.route({
 })
 
 try {
-	await app.listen({ port: Number(process.env.PORT) || 8081 })
+	await app.listen({ host: "0.0.0.0", port: env.PORT })
 } catch (err) {
 	app.log.error(err)
 	process.exit(1)
